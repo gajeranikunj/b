@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const upload = require('./multer');
 const fs = require('fs');
 const path = require('path');
+const { profile } = require('console');
 
 exports.update = async (req, res) => {
     try {
@@ -72,3 +73,6 @@ exports.update = async (req, res) => {
         });
     }
 };
+
+
+

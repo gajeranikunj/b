@@ -1,28 +1,82 @@
 const Category = require('../Modal/publicmusic');  // Corrected model import
+const Profile = require("../Modal/Profile")  // Importing the Profile model once
 const fs = require('fs');  // Import fs to delete previous images
 const path = require('path');  // Useful for resolving file paths
-
+const { profile } = require('console');
 exports.Create = async (req, res) => {
     try {
-        const { name, type, nameOfSinger, nameOfMusic, language } = req.body;
+        const userId = req.user.id; // Assuming the user ID is available in req.user
+        const data = await Profile.findOne({ userId: userId });
         const img = req.files["img"] ? req.files["img"][0].path : null;
         const audio = req.files["audio"] ? req.files["audio"][0].path : null;
+        // Check if the profile is private and reject upload
+        if (data.publicsong === false) {
+            if (img) {
+                // Delete the uploaded image if profile is private
+                fs.unlinkSync(path.join(__dirname, '..', img));
+            }
+            if (audio) {
+                // Delete the uploaded audio if profile is private
+                fs.unlinkSync(path.join(__dirname, '..', audio));
+            }
 
-        // Create the music entry
-        const musicEntry = await Category.create({ name, type, nameOfSinger, nameOfMusic, language, img, audio });
+            return res.status(200).json({
+                status: "file",
+                message: "You cannot share a public profile for live music.",
+            });
+        }
+        // Validate input fields
+        console.log(req.body);
+        const { type, nameOfMusic, language } = req.body;
+        if (!type || !nameOfMusic || !language) {
+            return res.status(400).json({
+                status: "fail",
+                message: "All fields must be provided",
+            });
+        }
 
-        // Add the music entry to the user's profile playlists
-        const userId = req.user.id; // Assuming the user ID is available in req.user
-        const Profile = require('../Modal/Profile'); // Import the Profile model
-        await Profile.findByIdAndUpdate(userId, { $addToSet: { playlists: musicEntry._id } }); // Add music entry to playlists
+        // If both files (img, audio) are missing, return an error
+        if (!img || !audio) {
+            // If Multer didn't upload the files, return an error without saving the files
+            return res.status(400).json({
+                status: "fail",
+                message: "Both image and audio files are required.",
+            });
+        }
+
+        const musicEntry = await Category.create({
+            type,
+            nameOfMusic,
+            language,
+            img,
+            audio
+        });
+
+        const updatedProfile = await Profile.findOne({ userId: userId });
+        updatedProfile.playlists.push(musicEntry._id); 
+        console.log(updatedProfile);
+
+        const up = await Profile.findByIdAndUpdate(updatedProfile._id, updatedProfile, { new: true });
+
+        console.log(up);
 
         res.status(201).json({
             status: "successful",
             message: "Music created successfully",
-            data: { name, type, nameOfSinger, nameOfMusic, language, img, audio }
+            data: { type, nameOfMusic, language, img, audio }
         });
+
     } catch (error) {
         console.error("Error creating music:", error);
+        // If there's an error, handle file cleanup (delete uploaded files if necessary)
+        if (req.files["img"]) {
+            fs.unlinkSync(path.join(__dirname, '..', req.files["img"][0].path));  // Delete uploaded image if creation fails
+        }
+        if (req.files["audio"]) {
+            fs.unlinkSync(path.join(__dirname, '..', req.files["audio"][0].path));  // Delete uploaded audio if creation fails
+        }
+
+        // Respond with an error
         res.status(400).json({
             status: "error",
             message: error.message,
@@ -122,12 +176,11 @@ exports.updete = async (req, res) => {
         }
 
         // Prepare the updated data
-        const { language, type, nameOfSinger, nameOfMusic } = req.body;
+        const { language, type, nameOfMusic } = req.body;
         const updatedData = {
-            language, 
-            type, 
-            nameOfSinger, 
-            nameOfMusic, 
+            language,
+            type,
+            nameOfMusic,
             img: img || existingData.img,  // Use existing image if no new one is provided
             audio: audio || existingData.audio  // Use existing audio if no new one is provided
         };
@@ -156,3 +209,20 @@ exports.updete = async (req, res) => {
         });
     }
 };
+
+
+exports.getmusiclist = async (req, res) => {
+    try {
+        const data = await Profile.find({ publicsong: true }).populate("playlists")
+        res.status(200).json({
+            status: "success",
+            data: data
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: "fail",
+            message: error.message
+        });
+    }
+};
+

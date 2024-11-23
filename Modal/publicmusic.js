@@ -1,15 +1,11 @@
 const mongoose = require('mongoose');
 
-const Schema = new mongoose.Schema({
+const Playlist = new mongoose.Schema({
     language: {  // Corrected typo 'langvage' -> 'language'
         type: String,
         required: true
     },
     type: {
-        type: String,
-        required: true
-    },
-    nameOfSinger: {  // Standardized field name
         type: String,
         required: true
     },
@@ -28,4 +24,4 @@ const Schema = new mongoose.Schema({
 },
 { timestamps: true });
 
-module.exports = mongoose.model('Category', Schema);  // Corrected typo 'Cetegory' -> 'Category'
+module.exports = mongoose.model('Playlist', Playlist);  // Corrected typo 'Cetegory' -> 'Category'

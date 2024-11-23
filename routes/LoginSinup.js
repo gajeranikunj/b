@@ -7,8 +7,6 @@ const AM = require('../Midlewhere/Autho');
 router.post('/Login',  UC.Login)
 router.post('/Singup', UC.Singup)
 router.post('/changepassword', AM.tokensecure, UC.changepassword)
-
-
 router.get('/data',AM.tokensecure, UC.getdata)
 
 
