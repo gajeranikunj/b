@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const ProfileSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -20,6 +19,10 @@ const ProfileSchema = new mongoose.Schema({
     img: {
         type: String,
         default: null
+    },
+    bgimg: {
+        type: String,
+        default: null // Add this for the background image
     },
     publicsong: {
         type: Boolean,
