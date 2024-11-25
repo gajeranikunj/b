@@ -21,8 +21,8 @@ const audioFileFilter = (req, file, cb) => {
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      
-      if (file.fieldname === "img") {
+      // Handle both img and bgimg fields to store in images directory
+      if (file.fieldname === "img" || file.fieldname === "bgimg") {
         cb(null, "./public/images");
       } else if (file.fieldname === "audio") {
         cb(null, "./public/audio");
@@ -33,7 +33,7 @@ const upload = multer({
     }
   }),
   fileFilter: (req, file, cb) => {
-    if (file.fieldname === "img") {
+    if (file.fieldname === "img" || file.fieldname === "bgimg") {
       imageFileFilter(req, file, cb);
     } else if (file.fieldname === "audio") {
       audioFileFilter(req, file, cb);

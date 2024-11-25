@@ -21,7 +21,12 @@ const Playlist = new mongoose.Schema({
         type: String,
         require: true
     },
-},
-{ timestamps: true });
+    publicmusic: {
+        type: Boolean,
+        default: true
+    },
 
-module.exports = mongoose.model('Playlist', Playlist);  // Corrected typo 'Cetegory' -> 'Category'
+},
+    { timestamps: true });
+
+module.exports = mongoose.model('Playlist', Playlist);  

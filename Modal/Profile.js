@@ -37,6 +37,11 @@ const ProfileSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Playlist',
         required: false
+    }],
+    customplaylists: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Playlist',
+        required: false
     }]
 }, { timestamps: true });
 

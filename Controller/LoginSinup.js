@@ -129,7 +129,6 @@ exports.getdata = async (req, res) => {
 
         if (!token) throw new Error("Token is required");
         const decoded = jwt.verify(token, "surat");
-        console.log("aaa"+decoded);
         
 
         // Get basic user data without image

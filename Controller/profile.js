@@ -3,10 +3,15 @@ const mongoose = require('mongoose');
 const upload = require('./multer');
 const fs = require('fs');
 const path = require('path');
-const { profile } = require('console');
+
+
 exports.update = async (req, res) => {
+    console.log(req.file);
     try {
-        upload.single('img')(req, res, async (err) => {
+        upload.fields([
+            { name: 'img', maxCount: 1 }, 
+            { name: 'bgimg', maxCount: 1 }
+        ])(req, res, async (err) => {
             if (err) {
                 return res.status(400).json({
                     status: "fail",
@@ -25,6 +30,10 @@ exports.update = async (req, res) => {
 
             const oldProfile = await Profile.findById(req.params.id);
 
+            // Logs for debugging
+            console.log("Existing profile:", oldProfile);
+            console.log("Received files:", req.files);
+
             // Handle profile image deletion
             if (deleteImage === 'true' && oldProfile && oldProfile.img) {
                 const oldImageName = oldProfile.img.split('/').pop();
@@ -34,6 +43,7 @@ exports.update = async (req, res) => {
                 }
                 updateData.img = null;
             }
+
             // Handle background image deletion
             if (deleteBgImage === 'true' && oldProfile && oldProfile.bgimg) {
                 const oldBgImageName = oldProfile.bgimg.split('/').pop();
@@ -45,7 +55,7 @@ exports.update = async (req, res) => {
             }
 
             // Handle new profile image upload
-            else if (req.file && req.file.fieldname === 'img') {
+            if (req.files && req.files['img']) {
                 if (oldProfile && oldProfile.img) {
                     const oldImageName = oldProfile.img.split('/').pop();
                     const oldImagePath = path.join(__dirname, '../public/images', oldImageName);
@@ -53,11 +63,11 @@ exports.update = async (req, res) => {
                         fs.unlinkSync(oldImagePath);
                     }
                 }
-                updateData.img = `http://localhost:3005/file/${req.file.filename}`;
+                updateData.img = `http://localhost:3005/file/${req.files['img'][0].filename}`;
             }
 
             // Handle new background image upload
-            else if (req.file && req.file.fieldname === 'bgimg') {
+            if (req.files && req.files['bgimg'] && req.files['bgimg'][0]) {
                 if (oldProfile && oldProfile.bgimg) {
                     const oldBgImageName = oldProfile.bgimg.split('/').pop();
                     const oldBgImagePath = path.join(__dirname, '../public/images', oldBgImageName);
@@ -65,8 +75,10 @@ exports.update = async (req, res) => {
                         fs.unlinkSync(oldBgImagePath);
                     }
                 }
-                updateData.bgimg = `http://localhost:3005/file/${req.file.filename}`;
+                updateData.bgimg = `http://localhost:3005/file/${req.files['bgimg'][0].filename}`;
             }
+
+            console.log("Update data to save:", updateData);
 
             const updatedProfile = await Profile.findByIdAndUpdate(
                 req.params.id,
@@ -80,6 +92,8 @@ exports.update = async (req, res) => {
                     message: "Profile not found",
                 });
             }
+
+            console.log("Updated profile:", updatedProfile);
 
             return res.status(200).json({
                 status: "success",
