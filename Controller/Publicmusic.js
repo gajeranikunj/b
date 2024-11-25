@@ -7,6 +7,7 @@ exports.Create = async (req, res) => {
     try {
         const userId = req.user.id; // Assuming the user ID is available in req.user
         const data = await Profile.findOne({ userId: userId });
+        console.log(data._id);
 
         // Modify how we store the file paths
         const img = req.files["img"] ? `http://localhost:3005/file/${req.files["img"][0].filename}` : null;
@@ -27,7 +28,7 @@ exports.Create = async (req, res) => {
         }
 
         // Validate input fields
-        console.log(req.body);
+        // console.log(req.body);
         const { type, nameOfMusic, language } = req.body;
         if (!type || !nameOfMusic || !language) {
             return res.status(400).json({
@@ -51,12 +52,12 @@ exports.Create = async (req, res) => {
             language,
             img,
             audio,
-            publicmusic: userId
+            profileid: data._id
         });
 
         const updatedProfile = await Profile.findOne({ userId: userId });
         updatedProfile.playlists.push(musicEntry._id);
-        console.log(updatedProfile);
+        // console.log(updatedProfile);
 
         const up = await Profile.findByIdAndUpdate(updatedProfile._id, updatedProfile, { new: true });
 
@@ -100,10 +101,12 @@ exports.show = async (req, res) => {
 
         // Shuffle using Fisher-Yates
         const shuffledData = fisherYatesShuffle(showdata);
+        console.log(shuffledData);
+
         res.status(200).json({
             status: "success",
             message: 'Data fetched successfully',
-            data: showdata
+            data: shuffledData
         });
     } catch (error) {
         console.error("Error fetching data:", error);
@@ -225,6 +228,22 @@ exports.getmusiclist = async (req, res) => {
         res.status(200).json({
             status: "success",
             data: data
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: "fail",
+            message: error.message
+        });
+    }
+};
+
+exports.mymusic = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const data = await Profile.findOne({ userId: userId }).populate("playlists")
+        res.status(200).json({
+            status: "success",
+            data: data.playlists
         });
     } catch (error) {
         res.status(500).json({

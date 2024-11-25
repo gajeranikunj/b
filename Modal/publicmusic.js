@@ -25,6 +25,11 @@ const Playlist = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    profileid: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Profile',
+        required: true
+    }
 
 },
     { timestamps: true });
