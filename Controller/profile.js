@@ -3,13 +3,14 @@ const mongoose = require('mongoose');
 const upload = require('./multer');
 const fs = require('fs');
 const path = require('path');
+const { profile } = require('console');
 
 
 exports.update = async (req, res) => {
     console.log(req.file);
     try {
         upload.fields([
-            { name: 'img', maxCount: 1 }, 
+            { name: 'img', maxCount: 1 },
             { name: 'bgimg', maxCount: 1 }
         ])(req, res, async (err) => {
             if (err) {
@@ -108,3 +109,21 @@ exports.update = async (req, res) => {
         });
     }
 };
+
+
+exports.addinlis = async (req, res) => {
+    try {
+        const data = await Profile.findOneAndUpdate(
+            { userId: req.user.id },
+            { $addToSet: { customplaylists: req.body.id } }, // Prevent duplicates
+            { new: true }
+        );
+        if (!data) {
+            return res.status(404).json({ status: "fail", message: "Profile not found" });
+        }
+        return res.status(200).json({ status: "success", data });
+    } catch (error) {
+        return res.status(500).json({ status: "fail", message: error.message });
+    }
+};
+

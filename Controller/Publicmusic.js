@@ -97,8 +97,11 @@ function fisherYatesShuffle(array) {
 
 exports.show = async (req, res) => {
     try {
-        const showdata = await Playlist.find();
-
+        var showdata = await Playlist.find().populate("profileid", "publicsong")
+        showdata = showdata.filter((data) => {
+            return data.profileid.publicsong === true && data.publicmusic === true;
+        });
+        
         // Shuffle using Fisher-Yates
         const shuffledData = fisherYatesShuffle(showdata);
         console.log(shuffledData);
@@ -139,12 +142,48 @@ exports.Suerch = async (req, res) => {
 
 exports.Delete = async (req, res) => {
     const Id = req.params.id;
+    console.log(req.params);
 
     try {
+        // First find the data to get file paths before deletion
+        const dataToDelete = await Playlist.findById(Id);
+
+        if (!dataToDelete) {
+            return res.status(404).json({
+                status: "fail",
+                message: "Data not found",
+            });
+        }
+
+        // Delete the files if they exist
+        if (dataToDelete.img) {
+            const imgFilename = dataToDelete.img.split('/').pop();
+            const imgPath = path.join(__dirname, '..', 'public', 'uploads', imgFilename);
+            if (fs.existsSync(imgPath)) {
+                fs.unlinkSync(imgPath);
+            }
+        }
+
+        if (dataToDelete.audio) {
+            const audioFilename = dataToDelete.audio.split('/').pop();
+            const audioPath = path.join(__dirname, '..', 'public', 'uploads', audioFilename);
+            if (fs.existsSync(audioPath)) {
+                fs.unlinkSync(audioPath);
+            }
+        }
+
+        // Now delete the database entry
         const deletdata = await Playlist.findByIdAndDelete(Id);
+
+        // Also remove the reference from the Profile's playlists array
+        await Profile.updateMany(
+            { playlists: Id },
+            { $pull: { playlists: Id } }
+        );
+
         res.status(200).json({
             status: "success",
-            message: 'Data deleted successfully',
+            message: 'Data and associated files deleted successfully',
             data: deletdata
         });
     } catch (error) {
@@ -158,17 +197,13 @@ exports.Delete = async (req, res) => {
 };
 
 exports.updete = async (req, res) => {
-    let Id = req.params.id;
-
-    // Update how we store the file paths
-    const img = req.files["img"] ? `http://localhost:3005/file/${req.files["img"][0].filename}` : null;
-    const audio = req.files["audio"] ? `http://localhost:3005/file/${req.files["audio"][0].filename}` : null; // Changed to match the new requirement
-
-    Id = Id.replace(/^id:/, '');
+    const Id = req.params.id;
+    console.log("Update request body:", req.body); // Better logging
+    console.log("Update request files:", req.files); // Log files
 
     try {
+        // Check if the music entry exists
         const existingData = await Playlist.findById(Id);
-
         if (!existingData) {
             return res.status(404).json({
                 status: "fail",
@@ -176,35 +211,43 @@ exports.updete = async (req, res) => {
             });
         }
 
-        // If the new image is provided, delete the old image
-        if (img && existingData.img) {
-            // Extract filename from the URL
-            const oldImageFilename = existingData.img.split('/').pop();
-            const oldImagePath = path.join(__dirname, '..', 'public', 'images', oldImageFilename);
-            if (fs.existsSync(oldImagePath)) {
-                fs.unlinkSync(oldImagePath);
+        // Prepare the updated data
+        const updatedData = {
+            ...req.body // Spread the body data first
+        };
+
+        // Handle image update if provided
+        if (req.files && req.files["img"]) {
+            updatedData.img = `http://localhost:3005/file/${req.files["img"][0].filename}`;
+            // Delete old image if it exists
+            if (existingData.img) {
+                const oldImageFilename = existingData.img.split('/').pop();
+                const oldImagePath = path.join(__dirname, '..', 'public', 'uploads', oldImageFilename);
+                if (fs.existsSync(oldImagePath)) {
+                    fs.unlinkSync(oldImagePath);
+                }
             }
         }
 
-        // Prepare the updated data
-        const { language, type, nameOfMusic } = req.body;
-        const updatedData = {
-            language,
-            type,
-            nameOfMusic,
-            img: img || existingData.img,  // Use existing image if no new one is provided
-            audio: audio || existingData.audio  // Use existing audio if no new one is provided
-        };
+        // Handle audio update if provided
+        if (req.files && req.files["audio"]) {
+            updatedData.audio = `http://localhost:3005/file/${req.files["audio"][0].filename}`;
+            // Delete old audio if it exists
+            if (existingData.audio) {
+                const oldAudioFilename = existingData.audio.split('/').pop();
+                const oldAudioPath = path.join(__dirname, '..', 'public', 'uploads', oldAudioFilename);
+                if (fs.existsSync(oldAudioPath)) {
+                    fs.unlinkSync(oldAudioPath);
+                }
+            }
+        }
 
         // Update the record
-        const updated = await Playlist.findByIdAndUpdate(Id, updatedData, { new: true });
-
-        if (!updated) {
-            return res.status(404).json({
-                status: "fail",
-                message: "Failed to update data"
-            });
-        }
+        const updated = await Playlist.findByIdAndUpdate(
+            Id,
+            updatedData,
+            { new: true }
+        );
 
         res.status(200).json({
             status: "success",
@@ -213,10 +256,18 @@ exports.updete = async (req, res) => {
         });
     } catch (error) {
         console.error("Error updating data:", error);
+        // Clean up any uploaded files in case of error
+        if (req.files) {
+            if (req.files["img"]) {
+                fs.unlinkSync(path.join(__dirname, '..', req.files["img"][0].path));
+            }
+            if (req.files["audio"]) {
+                fs.unlinkSync(path.join(__dirname, '..', req.files["audio"][0].path));
+            }
+        }
         res.status(500).json({
             status: "fail",
-            message: "Error updating data",
-            data: []
+            message: error.message
         });
     }
 };
@@ -224,10 +275,22 @@ exports.updete = async (req, res) => {
 
 exports.getmusiclist = async (req, res) => {
     try {
-        const data = await Profile.find({ publicsong: true, playlists: { $ne: [] } }).populate("playlists")
+        var data = await Profile.find({ publicsong: true, playlists: { $ne: [] } }).populate("playlists");
+
+        // Map over the data and filter `playlists` that have `publicmusic`
+        var now = data.map((d) => {
+            return {
+                ...d._doc, // Use `_doc` to spread the original object fields if needed
+                playlists: d.playlists.filter((playlist) => playlist.publicmusic),
+            };
+        });
+
+        console.log(now);
+
+
         res.status(200).json({
             status: "success",
-            data: data
+            data: now
         });
     } catch (error) {
         res.status(500).json({
@@ -241,6 +304,8 @@ exports.mymusic = async (req, res) => {
     const userId = req.user.id;
     try {
         const data = await Profile.findOne({ userId: userId }).populate("playlists")
+        console.log(data);
+
         res.status(200).json({
             status: "success",
             data: data.playlists
