@@ -1,4 +1,6 @@
 const Profile = require('../Modal/Profile');
+const publicmusic
+ = require("../Modal/publicmusic")
 const mongoose = require('mongoose');
 const upload = require('./multer');
 const fs = require('fs');
@@ -118,6 +120,21 @@ exports.addinlis = async (req, res) => {
             { $addToSet: { customplaylists: req.body.id } }, // Prevent duplicates
             { new: true }
         );
+        if (!data) {
+            return res.status(404).json({ status: "fail", message: "Profile not found" });
+        }
+        return res.status(200).json({ status: "success", data });
+    } catch (error) {
+        return res.status(500).json({ status: "fail", message: error.message });
+    }
+};
+
+
+exports.getdatalist = async (req, res) => {
+    try {
+        console.log(req.user.id);
+
+        const data = await Profile.find({ userId: req.user.id }).populate("customplaylists")
         if (!data) {
             return res.status(404).json({ status: "fail", message: "Profile not found" });
         }

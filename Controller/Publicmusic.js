@@ -86,6 +86,9 @@ exports.Create = async (req, res) => {
         });
     }
 };
+
+
+
 function fisherYatesShuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -101,7 +104,7 @@ exports.show = async (req, res) => {
         showdata = showdata.filter((data) => {
             return data.profileid.publicsong === true && data.publicmusic === true;
         });
-        
+
         // Shuffle using Fisher-Yates
         const shuffledData = fisherYatesShuffle(showdata);
         console.log(shuffledData);
@@ -284,10 +287,7 @@ exports.getmusiclist = async (req, res) => {
                 playlists: d.playlists.filter((playlist) => playlist.publicmusic),
             };
         });
-
         console.log(now);
-
-
         res.status(200).json({
             status: "success",
             data: now
